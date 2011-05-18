@@ -31,12 +31,15 @@ Thread.abort_on_exception = true
 ctx = ZMQ::Context.new(1)
 
 # This is our publisher
-Thread.new do
+pub_thread = Thread.new do
   pub_sock = ctx.socket(ZMQ::PUB)
   pub_sock.bind('tcp://127.0.0.1:2200')
+
+  # Wait for the subscribers to get ready
+  sleep 2 
   
   # This time, our publisher will send out messages indefinitel
-  loop do
+  5.times do
     puts "P: Sending our first message, about the Time Machine"
     
     # ZeroMQ messages can be broken up into multiple parts.
@@ -57,6 +60,8 @@ Thread.new do
     #Lets wait a second between messages
     sleep 1
   end
+
+  pub_sock.close
 end
 
 # Our Subscribers
@@ -79,8 +84,11 @@ sub_threads = []
       puts "S#{i}: I received a message! The topic was '#{topic}'"
       puts "S#{i}: The body of the message was '#{body}'"
     end
+
+    sub_sock.close
   end
 end
 
+pub_thread.join
 sub_threads.each {|t| t.join}
 ctx.terminate

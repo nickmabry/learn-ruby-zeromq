@@ -19,12 +19,13 @@ Thread.abort_on_exception = true
 ctx = ZMQ::Context.new(1)
 
 #Lets set ourselves up for replies
-Thread.new do
+rep_thread = Thread.new do
   rep_sock = ctx.socket(ZMQ::REP)
   rep_sock.bind('tcp://127.0.0.1:2200')
   
   begin
-    while message = rep_sock.recv_string
+    2.times do
+      message = rep_sock.recv_string
       puts "Received request '#{message}'"
       # You must send a reply back to the REQ socket.
       # Otherwise the REQ socket will be unable to send any more requests
@@ -32,6 +33,8 @@ Thread.new do
     end
   rescue ZMQ::SocketError
   end
+
+  rep_sock.close
 end
 
 req_sock = ctx.socket(ZMQ::REQ)
@@ -43,4 +46,11 @@ req_sock.connect('tcp://127.0.0.1:2200')
   puts "Received reply '#{rep}'"
 end
 
+# Close  the request socket
+req_sock.close
+
+# Wait for reply socket thread to close its socket
+rep_thread.join
+
+# Shut down the ZMQ context
 ctx.terminate
