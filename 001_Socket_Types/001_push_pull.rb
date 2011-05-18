@@ -32,6 +32,9 @@ push_thread = Thread.new do
     #Lets wait a second between messages
     sleep 1
   end
+
+  #Close the socket immediately
+  push_sock.close
 end
 
 #Here we create two pull sockets, you'll see an alternating pattern
@@ -46,8 +49,14 @@ pull_threads = []
     
     begin
       #Here we receive messages
-      while message = pull_sock.recv_string
+      while message = pull_sock.recv_string do
         puts "Pull#{i}: I received a message '#{message}'"
+
+        # Stop receiving if this is our socket's last message
+        if "6 Potato" == message or "7 Potato" == message
+          puts "Pull#{i} closing"
+          break;
+        end
       end
     #On termination sockets raise an error, lets handle this nicely
     #Later, we'll learn how to use polling to handle this type of situation
@@ -55,16 +64,18 @@ pull_threads = []
     rescue ZMQ::SocketError => e
       puts "Socket terminated: #{e.message}"
     end
+
+    pull_sock.close()
   end
 end
 
 #Wait till we're done pushing messages
 push_thread.join
 
-#Terminate the context to close all sockets
-ctx.terminate
-
 #Wait till the pull threads finish executing
 pull_threads.each {|t| t.join}
+
+#Terminate the context after all sockets are closed
+ctx.terminate
 
 puts "Done!"
